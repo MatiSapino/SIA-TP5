@@ -56,24 +56,22 @@ def get_latent_representations(model, data):
     latent_coords = []
     for x in data:
         model.forward(x)
-        latent_coords.append(model.outputs[2].copy())
+        latent_coords.append(model.outputs[4].copy())
     return np.array(latent_coords)
 
 def generate_from_latent(model, latent_vector):
     if not isinstance(latent_vector, np.ndarray):
         latent_vector = np.array(latent_vector)
 
-    weights_3 = model.weights[2]
-    bias_3 = model.biases[2]
-    z_3 = weights_3 @ latent_vector + bias_3
-    a_3 = model.activation(z_3)
+    current_output = latent_vector
 
-    weights_4 = model.weights[3]
-    bias_4 = model.biases[3]
-    z_4 = weights_4 @ a_3 + bias_4
-    a_4 = model.activation(z_4)
+    for i in range(4, model.layers - 1):
+        weights = model.weights[i]
+        bias = model.biases[i]
+        z = weights @ current_output + bias
+        current_output = model.activation(z)
 
-    return (a_4 > 0.5).astype(int)
+    return (current_output > 0.5).astype(int)
 
 def load_mnist_csv(path_to_csv, n_samples=None):
     data = np.loadtxt(path_to_csv, delimiter=",", skiprows=1)
@@ -110,12 +108,12 @@ def main():
         return
 
     training_data_ae = [(x, x) for x in font_data]
-    ae_sizes = [35, 32, 2, 32, 35]
+    ae_sizes = [35, 32, 24, 16, 2, 16, 24, 32, 35]
 
     ae = MultiLayerPerceptron(
         sizes=ae_sizes,
-        learning_rate=0.001,
-        epochs=20000,
+        learning_rate=0.000985,
+        epochs=8000,
         error_threshold=1,
         training_data=training_data_ae,
         activation="sigmoid",
