@@ -1,0 +1,11 @@
+.venv/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+output
+data/mnist_train.csv
+denoising_autoencoder_results.png
+generated_character_ae.png
+generated_digits_ae.png
+latent_space_representation_ae.png
