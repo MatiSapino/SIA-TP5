@@ -178,7 +178,7 @@ def main():
         optimizer="adam",
         task="autoencoder"
     )
-    #dae.train()
+    dae.train()
 
     indices_ejemplo = [char_names.index('g'), char_names.index('m'), char_names.index('z')]
 
