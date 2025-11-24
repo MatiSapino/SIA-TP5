@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 
-from multi_layer_perceptron import MultiLayerPerceptron
+from src.autoencoder.multi_layer_perceptron import MultiLayerPerceptron
 from noise_generator import generate_augmented_dataset
-from VariationalAutoencoder import VariationalAutoencoder
+from src.autoencoder.VariationalAutoencoder import VariationalAutoencoder
 
 def load_font_data(path_to_font_h="font.h"):
     with open(path_to_font_h, 'r') as f:
@@ -103,7 +103,7 @@ def main():
     print("## Part 1a: Basic Autoencoder (AE) ##")
     print("="*50)
 
-    font_data, char_names = load_font_data("font.h")
+    font_data, char_names = load_font_data("src/data/font.h")
     if font_data is None:
         return
 
@@ -178,7 +178,7 @@ def main():
         optimizer="adam",
         task="autoencoder"
     )
-    dae.train()
+    #dae.train()
 
     indices_ejemplo = [char_names.index('g'), char_names.index('m'), char_names.index('z')]
 
