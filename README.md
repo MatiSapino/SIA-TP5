@@ -30,14 +30,18 @@ Parado en la carpeta del tp4 ejecutar
 
 Para instalar las dependencias necesarias en el ambiente virtual
 
+Puede editar el archivo config.json con los valores deseados para cada Encoder
+
 ## Ejecución
 Para ejecutar el algoritmo
+
 ```
-pipenv run python main.py --mode {ae, dae, vae, all}
+pipenv run python main.py --config-file <config-path> --mode <ae, dae, vae, all>
 
 Ejemplo: para ejecutar solo el Autoencoder básico:
 
-pipenv run python main.py --mode ae
+pipenv run python main.py --config-file ae_config.json --mode ae
 
 ```
+
 
