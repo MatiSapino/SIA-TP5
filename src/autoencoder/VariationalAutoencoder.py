@@ -48,12 +48,12 @@ class VariationalAutoencoder:
         # Activations
         self.hidden_activation = relu
         self.hidden_activation_prime = relu_prime
-        self.output_activation = sigmoid  # Sigmoide para la salida (píxeles [0, 1])
-        self.epsilon = None               # Ruido aleatorio usado en el reparameterization trick
+        self.output_activation = sigmoid   # Sigmoide para la salida (píxeles [0, 1])
+        self.epsilon = None                # Ruido aleatorio usado en el reparameterization trick
 
     def _encoder_forward(self, x):
         activations = [x]
-        zs = []         # Almacenar las entradas preactivación (z = Wx + b)
+        zs = []                            # Almacenar las entradas preactivación (z = Wx + b)
         a = x
 
         # Capas ocultas del encoder
@@ -66,7 +66,7 @@ class VariationalAutoencoder:
         # Capa de salida del encoder (lineal, sin activación)
         z_out = self.encoder_weights[-1] @ a + self.encoder_biases[-1]
         zs.append(z_out)
-        activations.append(z_out)           # almacena la salida lineal
+        activations.append(z_out)           # Almacena la salida lineal
         # Dividir la salida en mu y log_var
         mu = z_out[:self.latent_dim]
         log_var = z_out[self.latent_dim:]
@@ -81,7 +81,6 @@ class VariationalAutoencoder:
         return z
 
     def _decoder_forward(self, z):
-
         activations = [z]
         zs = []
         a = z
@@ -112,7 +111,7 @@ class VariationalAutoencoder:
         epsilon = 1e-7  # para evitar log(0)!!!
         recon_loss = -np.sum(x * np.log(x_recon + epsilon) + (1 - x) * np.log(1 - x_recon + epsilon))
 
-        # KL Loss (Divergencia KL)
+        # KL Loss (Divergencia KL). Termino regularizador
         kl_loss = -0.5 * np.sum(1 + log_var - mu ** 2 - np.exp(log_var))
         total_loss = recon_loss + self.beta * kl_loss
 

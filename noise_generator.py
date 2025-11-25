@@ -35,9 +35,10 @@ def add_gaussian_noise(digits: List[np.ndarray], stddev: float, seed: int = None
     return noisy
 
 
-def generate_augmented_dataset(digits: List[np.ndarray], copies: int = 1, stddev: float = 0.2, include_original: bool = True, binarize: bool = False, threshold: float = 0.5, seed: int = None) -> List[np.ndarray]:
+def generate_augmented_dataset(digits: List[np.ndarray], copies: int = 1, stddev: float = 0.2, include_original: bool = True, binarize: bool = False, threshold: float = 0.5, seed: int = None, force_change: bool = False) -> List[np.ndarray]:
     out = []
     rng = np.random.RandomState(seed)
+    max_tries = 25
     # Write all originals first
     if include_original:
         for d in digits:
@@ -45,12 +46,24 @@ def generate_augmented_dataset(digits: List[np.ndarray], copies: int = 1, stddev
     # Then write all noisy digits (for each copy, all digits)
     for c in range(copies):
         for d in digits:
-            noise = rng.normal(loc=0.0, scale=stddev, size=d.shape)
-            nd = d + noise
-            nd = np.clip(nd, 0.0, 1.0)
-            if binarize:
-                nd = (nd >= threshold).astype(float)
-            out.append(nd)
+            for _ in range(max_tries):
+                noise = rng.normal(loc=0.0, scale=stddev, size=d.shape)
+                nd = d + noise
+                nd = np.clip(nd, 0.0, 1.0)
+                if binarize:
+                    nd = (nd >= threshold).astype(float)
+                if not force_change:
+                    out.append(nd)
+                    break
+                if not np.array_equal(nd, d):
+                    out.append(nd)
+                    break
+            else:
+                # Si falló en todos los intentos, forzamos cambio manual
+                nd = d.copy()
+                idx = rng.randint(nd.size)
+                nd.flat[idx] = 1.0 - nd.flat[idx]  # flip binario
+                out.append(nd)
     return out
 
 
