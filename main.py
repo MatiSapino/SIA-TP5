@@ -225,7 +225,7 @@ def main():
         learning_rate=0.0005,
         beta=1
     )
-    vae.fit(x_train_mnist, epochs=150, batch_size=64)
+    vae.fit(x_train_mnist, epochs=200, batch_size=64, loss_threshold=100.0, patience=10)
 
     generated_images = vae.generate(n_samples=10)
 

@@ -203,9 +203,11 @@ class VariationalAutoencoder:
         return grad_encoder_weights, grad_encoder_biases, grad_decoder_weights, grad_decoder_biases
 
 
-    def fit(self, X_train, epochs, batch_size=64):  # Entrena el VAE usando mini-batch gradient descent
+    def fit(self, X_train, epochs, batch_size=64, loss_threshold=None, patience=5):  # Entrena el VAE usando mini-batch gradient descent
 
         num_samples = X_train.shape[0]
+        best_loss = float('inf')
+        patience_counter = 0
 
         for epoch in range(epochs):
             start_time = time.time()
@@ -310,8 +312,28 @@ class VariationalAutoencoder:
             avg_loss = epoch_loss / num_samples
             avg_recon_loss = epoch_recon_loss / num_samples
             avg_kl_loss = epoch_kl_loss / num_samples
+            
+            # Normalize by number of pixels for easier interpretation
+            per_pixel_loss = avg_loss / self.input_dim
+            per_pixel_recon = avg_recon_loss / self.input_dim
+            
             elapsed = time.time() - start_time
-            print(f"Epoch {epoch + 1}/{epochs} | Tiempo: {elapsed:.2f}s | Loss: {avg_loss:.2f} | Recon Loss: {avg_recon_loss:.2f} | KL Loss: {avg_kl_loss:.2f}")
+            print(f"Epoch {epoch + 1}/{epochs} | Tiempo: {elapsed:.2f}s | Loss: {avg_loss:.2f} ({per_pixel_loss:.4f}/pixel) | Recon Loss: {avg_recon_loss:.2f} ({per_pixel_recon:.4f}/pixel) | KL Loss: {avg_kl_loss:.2f}")
+            
+            # Early stopping based on loss threshold
+            if loss_threshold is not None and avg_loss <= loss_threshold:
+                print(f"\n✓ Reached loss threshold {loss_threshold:.2f}. Stopping early at epoch {epoch + 1}.")
+                break
+            
+            # Early stopping based on patience (no improvement)
+            if avg_loss < best_loss:
+                best_loss = avg_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f"\n✓ No improvement for {patience} epochs. Stopping early at epoch {epoch + 1}.")
+                    break
 
     def generate(self, n_samples=1):    
         generated_images = []   # Nuevas muestras desde el espacio latente
