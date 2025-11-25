@@ -1,3 +1,5 @@
+import json
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import re
@@ -101,84 +103,116 @@ def plot_digit(digit_vector, title="", ax=None):
 
 
 
-
-def run_basic_autoencoder(font_path="src/data/font.h"):
+def run_basic_autoencoder(config):
     print("\n" + "=" * 50)
     print("## Part 1a: Basic Autoencoder (AE) ##")
     print("=" * 50)
+
+    font_path = config["font_file"]
+    plots_dir = config["output_plots_dir"]
+
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir)
 
     font_data, char_names = load_font_data(font_path)
     if font_data is None:
         return
 
+    ae_cfg = config["autoencoder"]
+
     training_data = [(x, x) for x in font_data]
 
-    ae_sizes = [35, 32, 24, 16, 2, 16, 24, 32, 35]
     ae = MultiLayerPerceptron(
-        sizes=ae_sizes,
-        learning_rate=0.000985,
-        epochs=8000,
-        error_threshold=1,
+        sizes=ae_cfg["sizes"],
+        learning_rate=ae_cfg["learning_rate"],
+        epochs=ae_cfg["epochs"],
+        error_threshold=ae_cfg["error_threshold"],
         training_data=training_data,
-        activation="sigmoid",
-        optimizer="adam",
+        activation=ae_cfg["activation"],
+        optimizer=ae_cfg["optimizer"],
         task="autoencoder"
     )
+
     ae.train()
 
     latent_coords = get_latent_representations(ae, font_data)
 
     plt.figure(figsize=(12, 8))
-    plt.scatter(latent_coords[:, 0], latent_coords[:, 1], s=10)
+    plt.scatter(
+        latent_coords[:, 0], 
+        latent_coords[:, 1], 
+        s=config["visualization"]["scatter_point_size"]
+    )
+
     for i, name in enumerate(char_names):
-        plt.text(latent_coords[i, 0] + 0.01, latent_coords[i, 1] + 0.01, name, fontsize=9)
-    plt.title("Latent Space Representation of Font Characters (AE)")
-    plt.xlabel("Latent Dimension 1")
-    plt.ylabel("Latent Dimension 2")
+        plt.text(
+            latent_coords[i, 0] + 0.01,
+            latent_coords[i, 1] + 0.01,
+            name,
+            fontsize=9
+        )
+
+    plt.title(config["visualization"]["plot_title"])
+    plt.xlabel(config["visualization"]["x_label"])
+    plt.ylabel(config["visualization"]["y_label"])
     plt.grid(True, linestyle="--", alpha=0.6)
-    plt.savefig("latent_space_representation_ae.png")
+
+    out_path = os.path.join(plots_dir, "latent_space_representation_ae.png")
+    plt.savefig(out_path)
+    print(f"Saved latent space plot to: {out_path}")
+    plt.close()
 
 
-def run_denoising_autoencoder(font_path="src/data/font.h"):
+def run_denoising_autoencoder(config):
     print("\n" + "=" * 50)
     print("## Part 1b: Denoising Autoencoder (DAE) ##")
     print("=" * 50)
+
+    font_path = config["font_file"]
+    plots_dir = config["output_plots_dir"]
+
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir)
 
     font_data, char_names = load_font_data(font_path)
     if font_data is None:
         return
     
-    ae_sizes = [35, 32, 24, 16, 2, 16, 24, 32, 35]
-    copies = 5
-    seed = 42
+    ae_cfg = config["autoencoder"]
+    aug_cfg = config["noise_augmentation"]
+    eval_cfg = config["evaluation"]
 
     font_data_list = [x.astype(float) for x in font_data]
+
     noisy_data_list = generate_augmented_dataset(
         font_data_list,
-        copies=copies,
-        stddev=0.2,
+        copies=aug_cfg["copies"],
+        stddev=aug_cfg["stddev"],
         include_original=True,
-        binarize=True,
-        seed=seed,
-        force_change=True
+        binarize=aug_cfg["binarize"],
+        threshold=aug_cfg["threshold"],
+        seed=aug_cfg["seed"],
+        force_change=aug_cfg["force_change"]
     )
-    clean_targets = font_data_list * (copies + 1)
+    clean_targets = font_data_list * (aug_cfg["copies"] + 1)
     training_data_dae = list(zip(noisy_data_list, clean_targets))
 
     dae = MultiLayerPerceptron(
-        sizes = ae_sizes,
-        learning_rate=0.000985,
-        epochs=2000,
-        error_threshold=5,
+        sizes=ae_cfg["sizes"],
+        learning_rate=ae_cfg["learning_rate"],
+        epochs=ae_cfg["epochs"],
+        error_threshold=ae_cfg["error_threshold"],
         training_data=training_data_dae,
-        activation="sigmoid",
-        optimizer="adam",
+        activation=ae_cfg["activation"],
+        optimizer=ae_cfg["optimizer"],
         task="autoencoder"
     )
     dae.train()
 
-    noise_levels = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]
-    samples_per_level = 20   # cantidad de muestras de ruido por nivel
+    noise_levels = eval_cfg["noise_levels"]
+    samples_per_level = eval_cfg["samples_per_level"]
+
+    
     character_errors = {name: [] for name in char_names}
     noise_samples = {}       # (char_name, noise) -> lista de muestras ruidosas
 
@@ -196,7 +230,7 @@ def run_denoising_autoencoder(font_path="src/data/font.h"):
                     stddev=noise,
                     include_original=False,
                     binarize=True,
-                    seed=(i * 100 * seed + s),
+                    seed=(i * 100 * aug_cfg["seed"] + s),
                     force_change=True
                 )[0]
 
@@ -275,29 +309,48 @@ def run_denoising_autoencoder(font_path="src/data/font.h"):
             plt.savefig(f"src/plots/dae_{name}_noise_{noise}.png")
 
 
-def run_variational_autoencoder(mnist_path="data/mnist_train.csv"):
+def run_variational_autoencoder(config):
     print("\n" + "=" * 50)
     print("## Part 2: Variational Autoencoder (VAE) ##")
     print("=" * 50)
 
-    x_train, y_train = load_mnist_csv(mnist_path, n_samples=20000)
+    vae_cfg = config["variational_autoencoder"]
+    plots_dir = config["output_plots_dir"]
 
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir)
+
+    mnist_path = vae_cfg["mnist_file"]
+    n_samples = vae_cfg["n_samples"]
+
+    x_train, y_train = load_mnist_csv(mnist_path, n_samples=n_samples)
+
+    # Build VAE from config
     vae = VariationalAutoencoder(
-        input_dim=784,
-        hidden_dims_encoder=[128, 64],
-        latent_dim=2,
-        hidden_dims_decoder=[64, 128],
-        learning_rate=0.001,
-        beta=1
+        input_dim=vae_cfg["input_dim"],
+        hidden_dims_encoder=vae_cfg["hidden_dims_encoder"],
+        latent_dim=vae_cfg["latent_dim"],
+        hidden_dims_decoder=vae_cfg["hidden_dims_decoder"],
+        learning_rate=vae_cfg["learning_rate"],
+        beta=vae_cfg["beta"]
     )
-    vae.fit(x_train, epochs=200, batch_size=64, loss_threshold=100.0, patience=10)
 
-    create_all_vae_visualizations(vae, x_train, y_train)
+    vae.fit(
+        x_train,
+        epochs=vae_cfg["epochs"],
+        batch_size=vae_cfg["batch_size"],
+        loss_threshold=vae_cfg["loss_threshold"],
+        patience=vae_cfg["patience"]
+    )
+
+    create_all_vae_visualizations(vae, x_train, y_train, save_dir=plots_dir)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run Autoencoder Experiments")
+    parser = argparse.ArgumentParser(description="Run Autoencoder")
 
+    parser.add_argument("--config-file", type=str, default="./vae_config.json", help="Path to the configuration JSON file.")
+    
     parser.add_argument(
         "--mode",
         type=str,
@@ -307,16 +360,20 @@ def main():
     )
 
     args = parser.parse_args()
+
+    with open(args.config_file, "r") as file:
+        config = json.load(file)
+
     np.random.seed(42)
 
     if args.mode in ["ae", "all"]:
-        run_basic_autoencoder()
+        run_basic_autoencoder(config)
 
     if args.mode in ["dae", "all"]:
-        run_denoising_autoencoder()
+        run_denoising_autoencoder(config)
 
     if args.mode in ["vae", "all"]:
-        run_variational_autoencoder()
+        run_variational_autoencoder(config)
 
 
 if __name__ == "__main__":

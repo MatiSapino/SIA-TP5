@@ -1,0 +1,18 @@
+{
+  "font_file": "src/data/font.h",
+  "output_plots_dir": "plots",
+  "autoencoder": {
+    "sizes": [35, 32, 24, 16, 2, 16, 24, 32, 35],
+    "activation": "sigmoid",
+    "optimizer": "adam",
+    "learning_rate": 0.000985,
+    "epochs": 8000,
+    "error_threshold": 1
+  },
+  "visualization": {
+    "scatter_point_size": 10,
+    "plot_title": "Latent Space Representation of Font Characters (AE)",
+    "x_label": "Latent Dimension 1",
+    "y_label": "Latent Dimension 2"
+  }
+}
