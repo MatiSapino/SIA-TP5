@@ -5,6 +5,7 @@ import re
 from src.autoencoder.multi_layer_perceptron import MultiLayerPerceptron
 from noise_generator import generate_augmented_dataset
 from src.autoencoder.VariationalAutoencoder import VariationalAutoencoder
+from src.plots.vae_plots import create_all_vae_visualizations
 
 def load_font_data(path_to_font_h="font.h"):
     with open(path_to_font_h, 'r') as f:
@@ -213,27 +214,22 @@ def main():
 
     x_train_mnist, y_train_mnist = load_mnist_csv("data/mnist_train.csv", n_samples=20000)
     input_dim = 784
-    hidden_enc = [256, 128]
-    latent_dim = 10
-    hidden_dec = [128, 256]
+    hidden_enc = [128, 64]
+    latent_dim = 2
+    hidden_dec = [64, 128]
 
     vae = VariationalAutoencoder(
         input_dim=input_dim,
         hidden_dims_encoder=hidden_enc,
         latent_dim=latent_dim,
         hidden_dims_decoder=hidden_dec,
-        learning_rate=0.0005,
-        beta=0.1
+        learning_rate=0.001,
+        beta=1
     )
-    vae.fit(x_train_mnist, epochs=100, batch_size=64)
+    vae.fit(x_train_mnist, epochs=200, batch_size=64, loss_threshold=100.0, patience=10)
 
-    generated_images = vae.generate(n_samples=10)
-
-    fig, axes = plt.subplots(1, 10, figsize=(15, 2))
-    for i, img in enumerate(generated_images):
-        plot_digit(img, ax=axes[i])
-    fig.suptitle("Generated Digits from VAE", fontsize=16)
-    plt.savefig("generated_digits_ae.png")
+    # Create all VAE visualizations
+    create_all_vae_visualizations(vae, x_train_mnist, y_train_mnist)
 
 if __name__ == "__main__":
     main()
