@@ -7,7 +7,7 @@ import argparse
 
 from src.autoencoder.multi_layer_perceptron import MultiLayerPerceptron
 from noise_generator import generate_augmented_dataset
-from src.autoencoder.VariationalAutoencoder import VariationalAutoencoder
+from src.autoencoder.variational_autoencoder import VariationalAutoencoder
 from src.plots.vae_plots import create_all_vae_visualizations
 
 def load_font_data(path_to_font_h="font.h"):

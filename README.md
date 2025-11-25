@@ -40,7 +40,7 @@ pipenv run python main.py --config-file <config-path> --mode <ae, dae, vae, all>
 
 Ejemplo: para ejecutar solo el Autoencoder básico:
 
-pipenv run python main.py --config-file ae_config.json --mode ae
+pipenv run python main.py --config-file configs/ae_config.json --mode ae
 
 ```
 
