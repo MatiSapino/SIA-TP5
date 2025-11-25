@@ -214,7 +214,7 @@ def main():
     x_train_mnist, y_train_mnist = load_mnist_csv("data/mnist_train.csv", n_samples=20000)
     input_dim = 784
     hidden_enc = [256, 128]
-    latent_dim = 10
+    latent_dim = 2
     hidden_dec = [128, 256]
 
     vae = VariationalAutoencoder(
@@ -223,9 +223,9 @@ def main():
         latent_dim=latent_dim,
         hidden_dims_decoder=hidden_dec,
         learning_rate=0.0005,
-        beta=0.1
+        beta=1
     )
-    vae.fit(x_train_mnist, epochs=100, batch_size=64)
+    vae.fit(x_train_mnist, epochs=150, batch_size=64)
 
     generated_images = vae.generate(n_samples=10)
 

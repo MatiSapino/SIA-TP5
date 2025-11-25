@@ -50,6 +50,25 @@ class VariationalAutoencoder:
         self.hidden_activation_prime = relu_prime
         self.output_activation = sigmoid  # Sigmoide para la salida (píxeles [0, 1])
         self.epsilon = None               # Ruido aleatorio usado en el reparameterization trick
+        
+        # Adam optimizer parameters
+        self.beta1 = 0.9
+        self.beta2 = 0.999
+        self.epsilon_adam = 1e-8
+        
+        # Initialize Adam momentum and velocity for encoder
+        self.m_enc_w = [np.zeros_like(w) for w in self.encoder_weights]
+        self.v_enc_w = [np.zeros_like(w) for w in self.encoder_weights]
+        self.m_enc_b = [np.zeros_like(b) for b in self.encoder_biases]
+        self.v_enc_b = [np.zeros_like(b) for b in self.encoder_biases]
+        
+        # Initialize Adam momentum and velocity for decoder
+        self.m_dec_w = [np.zeros_like(w) for w in self.decoder_weights]
+        self.v_dec_w = [np.zeros_like(w) for w in self.decoder_weights]
+        self.m_dec_b = [np.zeros_like(b) for b in self.decoder_biases]
+        self.v_dec_b = [np.zeros_like(b) for b in self.decoder_biases]
+        
+        self.t = 0  # Time step for Adam
 
     def _encoder_forward(self, x):
         activations = [x]
@@ -229,16 +248,59 @@ class VariationalAutoencoder:
                         sum_grad_dec_w[j] += g_dw[j]
                         sum_grad_dec_b[j] += g_db[j]
 
-                # 5) Actualizar pesos (usando el gradiente promedio del batch)
+                # 5) Actualizar pesos usando Adam optimizer
                 batch_len = len(batch)
-
+                self.t += 1
+                
+                # Update encoder weights and biases with Adam
                 for j in range(len(self.encoder_weights)):
-                    self.encoder_weights[j] -= self.lr * (sum_grad_enc_w[j] / batch_len)
-                    self.encoder_biases[j] -= self.lr * (sum_grad_enc_b[j] / batch_len)
+                    grad_w = sum_grad_enc_w[j] / batch_len
+                    grad_b = sum_grad_enc_b[j] / batch_len
+                    
+                    # Update biased first moment estimate
+                    self.m_enc_w[j] = self.beta1 * self.m_enc_w[j] + (1 - self.beta1) * grad_w
+                    self.m_enc_b[j] = self.beta1 * self.m_enc_b[j] + (1 - self.beta1) * grad_b
+                    
+                    # Update biased second raw moment estimate
+                    self.v_enc_w[j] = self.beta2 * self.v_enc_w[j] + (1 - self.beta2) * (grad_w ** 2)
+                    self.v_enc_b[j] = self.beta2 * self.v_enc_b[j] + (1 - self.beta2) * (grad_b ** 2)
+                    
+                    # Compute bias-corrected first moment estimate
+                    m_hat_w = self.m_enc_w[j] / (1 - self.beta1 ** self.t)
+                    m_hat_b = self.m_enc_b[j] / (1 - self.beta1 ** self.t)
+                    
+                    # Compute bias-corrected second raw moment estimate
+                    v_hat_w = self.v_enc_w[j] / (1 - self.beta2 ** self.t)
+                    v_hat_b = self.v_enc_b[j] / (1 - self.beta2 ** self.t)
+                    
+                    # Update parameters
+                    self.encoder_weights[j] -= self.lr * m_hat_w / (np.sqrt(v_hat_w) + self.epsilon_adam)
+                    self.encoder_biases[j] -= self.lr * m_hat_b / (np.sqrt(v_hat_b) + self.epsilon_adam)
 
+                # Update decoder weights and biases with Adam
                 for j in range(len(self.decoder_weights)):
-                    self.decoder_weights[j] -= self.lr * (sum_grad_dec_w[j] / batch_len)
-                    self.decoder_biases[j] -= self.lr * (sum_grad_dec_b[j] / batch_len)
+                    grad_w = sum_grad_dec_w[j] / batch_len
+                    grad_b = sum_grad_dec_b[j] / batch_len
+                    
+                    # Update biased first moment estimate
+                    self.m_dec_w[j] = self.beta1 * self.m_dec_w[j] + (1 - self.beta1) * grad_w
+                    self.m_dec_b[j] = self.beta1 * self.m_dec_b[j] + (1 - self.beta1) * grad_b
+                    
+                    # Update biased second raw moment estimate
+                    self.v_dec_w[j] = self.beta2 * self.v_dec_w[j] + (1 - self.beta2) * (grad_w ** 2)
+                    self.v_dec_b[j] = self.beta2 * self.v_dec_b[j] + (1 - self.beta2) * (grad_b ** 2)
+                    
+                    # Compute bias-corrected first moment estimate
+                    m_hat_w = self.m_dec_w[j] / (1 - self.beta1 ** self.t)
+                    m_hat_b = self.m_dec_b[j] / (1 - self.beta1 ** self.t)
+                    
+                    # Compute bias-corrected second raw moment estimate
+                    v_hat_w = self.v_dec_w[j] / (1 - self.beta2 ** self.t)
+                    v_hat_b = self.v_dec_b[j] / (1 - self.beta2 ** self.t)
+                    
+                    # Update parameters
+                    self.decoder_weights[j] -= self.lr * m_hat_w / (np.sqrt(v_hat_w) + self.epsilon_adam)
+                    self.decoder_biases[j] -= self.lr * m_hat_b / (np.sqrt(v_hat_b) + self.epsilon_adam)
 
                 epoch_loss += batch_loss
                 epoch_recon_loss += batch_recon_loss
