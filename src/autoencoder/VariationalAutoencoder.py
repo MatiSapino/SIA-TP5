@@ -337,6 +337,7 @@ class VariationalAutoencoder:
 
     def generate(self, n_samples=1):    
         generated_images = []   # Nuevas muestras desde el espacio latente
+        latent_coords = []
 
         for _ in range(n_samples):
             # Muestrea un z aleatorio de una N(0, I)
@@ -344,5 +345,26 @@ class VariationalAutoencoder:
             # Pasa z solo por el decoder
             x_generated, _, _ = self._decoder_forward(z_sample)
             generated_images.append(x_generated.reshape(28, 28))
+            latent_coords.append(z_sample)
 
+        return generated_images, latent_coords
+    
+    def generate_from_latent(self, latent_points):
+        """Generate images from specific latent coordinates"""
+        generated_images = []
+        
+        for z in latent_points:
+            x_generated, _, _ = self._decoder_forward(z)
+            generated_images.append(x_generated.reshape(28, 28))
+        
         return generated_images
+    
+    def encode(self, x):
+        """Encode an image to latent space (returns mu only, no sampling)"""
+        mu, log_var, _, _ = self._encoder_forward(x)
+        return mu
+    
+    def reconstruct(self, x):
+        """Reconstruct an image"""
+        x_recon, _, _, _, _, _, _, _ = self.forward(x)
+        return x_recon
