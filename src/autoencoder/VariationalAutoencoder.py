@@ -1,39 +1,21 @@
-# VariationalAutoencoder.py
-# Implementación "a mano" (NumPy) para la Parte 2 del TP5
-
 import numpy as np
 import time
 
-
-# --- Funciones de Activación y sus Derivadas ---
-
 def sigmoid(z):
-    """Aplica la función sigmoide, con clipping para estabilidad numérica."""
     z = np.clip(z, -500, 500)  # Evita overflow en np.exp
     return 1 / (1 + np.exp(-z))
 
-
 def sigmoid_prime(a):
-    """Derivada de la función sigmoide (asumiendo que 'a' es la salida de la sigmoide)."""
     return a * (1 - a)
 
-
 def relu(z):
-    """Función de activación ReLU (Rectified Linear Unit)."""
     return np.maximum(0, z)
 
-
 def relu_prime(a):
-    """Derivada de la función ReLU (asumiendo que 'a' es la salida de ReLU)."""
     return (a > 0).astype(float)
 
 
 class VariationalAutoencoder:
-    """
-    Implementación de un Autoencoder Variacional (VAE) desde cero usando solo NumPy.
-
-    Basado en la teoría de 'Autoencoders.pdf' (págs. [cite_start]73-89) [cite: 580-681].
-    """
 
     def __init__(self, input_dim, hidden_dims_encoder, latent_dim, hidden_dims_decoder, learning_rate=1e-3, beta=1.0):
         self.input_dim = input_dim
@@ -41,20 +23,18 @@ class VariationalAutoencoder:
         self.lr = learning_rate
         self.beta = beta
 
-        # --- Arquitectura del Encoder ---
-        # El Encoder genera [mu, log_var], por eso la salida es latent_dim * 2
+        # Arquitectura del Encoder: genera [mu, log_var], por eso la salida es latent_dim * 2
         self.encoder_sizes = [input_dim] + hidden_dims_encoder + [latent_dim * 2]
         self.encoder_weights = []
         self.encoder_biases = []
-
         sizes = self.encoder_sizes
+
         for i in range(len(sizes) - 1):
-            # Inicialización Xavier/Glorot
             std_dev = np.sqrt(2.0 / (sizes[i] + sizes[i + 1]))
             self.encoder_weights.append(np.random.randn(sizes[i + 1], sizes[i]) * std_dev)
             self.encoder_biases.append(np.zeros(sizes[i + 1]))
 
-        # --- Arquitectura del Decoder ---
+        # Arqui del Decoder
         self.decoder_sizes = [latent_dim] + hidden_dims_decoder + [input_dim]
         self.decoder_weights = []
         self.decoder_biases = []
@@ -65,18 +45,15 @@ class VariationalAutoencoder:
             self.decoder_weights.append(np.random.randn(sizes[i + 1], sizes[i]) * std_dev)
             self.decoder_biases.append(np.zeros(sizes[i + 1]))
 
-        # --- Funciones de Activación ---
+        # Activations
         self.hidden_activation = relu
         self.hidden_activation_prime = relu_prime
         self.output_activation = sigmoid  # Sigmoide para la salida (píxeles [0, 1])
-
-        # Almacenamiento temporal para backpropagation
-        self.epsilon = None  # Ruido aleatorio usado en el reparameterization trick
+        self.epsilon = None               # Ruido aleatorio usado en el reparameterization trick
 
     def _encoder_forward(self, x):
-        """Pase forward solo a través del Encoder."""
         activations = [x]
-        zs = []  # Almacena las entradas pre-activación (z = Wx + b)
+        zs = []         # Almacenar las entradas preactivación (z = Wx + b)
         a = x
 
         # Capas ocultas del encoder
@@ -89,26 +66,22 @@ class VariationalAutoencoder:
         # Capa de salida del encoder (lineal, sin activación)
         z_out = self.encoder_weights[-1] @ a + self.encoder_biases[-1]
         zs.append(z_out)
-        activations.append(z_out)  # Almacena la salida lineal
-
+        activations.append(z_out)           # almacena la salida lineal
         # Dividir la salida en mu y log_var
         mu = z_out[:self.latent_dim]
         log_var = z_out[self.latent_dim:]
 
         return mu, log_var, activations, zs
 
-    def _reparameterize(self, mu, log_var):
-        """
-        [cite_start]Aplica el "Reparameterization Trick" [cite: 365-369, 683-704].
-        z = mu + epsilon * std
-        """
+    def _reparameterize(self, mu, log_var): # Reparameterization Trick (z = mu + epsilon * std)
         std = np.exp(0.5 * log_var)
         self.epsilon = np.random.randn(self.latent_dim)  # Almacena epsilon para backprop
         z = mu + self.epsilon * std
+
         return z
 
     def _decoder_forward(self, z):
-        """Pase forward solo a través del Decoder."""
+
         activations = [z]
         zs = []
         a = z
@@ -127,36 +100,27 @@ class VariationalAutoencoder:
         activations.append(x_recon)
         return x_recon, activations, zs
 
-    def forward(self, x):
-        """Pase forward completo del VAE."""
+    def forward(self, x):   # Forward completo del VAE
         mu, log_var, enc_activations, enc_zs = self._encoder_forward(x)
         z = self._reparameterize(mu, log_var)
         x_recon, dec_activations, dec_zs = self._decoder_forward(z)
+
         return x_recon, mu, log_var, z, enc_activations, enc_zs, dec_activations, dec_zs
 
-    def _compute_loss(self, x, x_recon, mu, log_var):
-        """
-        [cite_start]Calcula la pérdida total del VAE = Reconstruction_Loss + KL_Loss[cite: 624].
-        """
-        # 1. Reconstruction Loss (Binary Cross-Entropy)
-        # Se añade epsilon para evitar log(0)
-        epsilon = 1e-7
+    def _compute_loss(self, x, x_recon, mu, log_var):   # Calcula la pérdida total del VAE = Reconstruction_Loss + KL_Loss
+        # Reconstruction Loss (Binary Cross-Entropy)
+        epsilon = 1e-7  # para evitar log(0)!!!
         recon_loss = -np.sum(x * np.log(x_recon + epsilon) + (1 - x) * np.log(1 - x_recon + epsilon))
 
-        # [cite_start]2. KL Loss (Divergencia KL) [cite: 618]
+        # KL Loss (Divergencia KL)
         kl_loss = -0.5 * np.sum(1 + log_var - mu ** 2 - np.exp(log_var))
-
         total_loss = recon_loss + self.beta * kl_loss
+
         return total_loss, recon_loss, kl_loss
 
-    def backward(self, x, x_recon, mu, log_var, z, enc_activations, enc_zs, dec_activations, dec_zs):
-        """
-        Pase backward completo (Retropropagación) para el VAE.
-        Calcula los gradientes para todos los pesos y biases.
-        [cite_start][cite: 786-825]
-        """
+    def backward(self, x, x_recon, mu, log_var, z, enc_activations, enc_zs, dec_activations, dec_zs): # Backward completo (Retropropagación): calcula los gradientes para todos los pesos y biases
 
-        # --- 1. Gradientes para el Decoder ---
+        # Gradientes para el Decoder
         grad_decoder_weights = [np.zeros_like(w) for w in self.decoder_weights]
         grad_decoder_biases = [np.zeros_like(b) for b in self.decoder_biases]
 
@@ -181,15 +145,15 @@ class VariationalAutoencoder:
         # Este es el gradiente que fluye de vuelta al "Reparameterization Trick"
         dLoss_dz = self.decoder_weights[0].T @ delta
 
-        # --- 2. Gradientes para el Encoder ---
+        # Gradientes para el Encoder
         grad_encoder_weights = [np.zeros_like(w) for w in self.encoder_weights]
         grad_encoder_biases = [np.zeros_like(b) for b in self.encoder_biases]
 
-        # [cite_start]Gradientes de la Pérdida KL con respecto a mu y log_var [cite: 799]
+        # Gradientes de la Pérdida KL con respecto a mu y log_var
         dKL_dmu = self.beta * mu
         dKL_dlog_var = self.beta * (0.5 * (np.exp(log_var) - 1))
 
-        # [cite_start]Gradientes del "Reparameterization Trick" [cite: 792, 799]
+        # Gradientes del "Reparameterization Trick"
         std = np.exp(0.5 * log_var)
         dz_dmu = 1.0
         dz_dlog_var = self.epsilon * 0.5 * std
@@ -209,6 +173,7 @@ class VariationalAutoencoder:
 
         # Retropropagar a través de las capas ocultas del encoder
         delta = delta_encoder_out
+
         for l in range(2, len(self.encoder_sizes)):
             a_prime = self.hidden_activation_prime(enc_activations[-l])
             delta = (self.encoder_weights[-l + 1].T @ delta) * a_prime
@@ -218,8 +183,9 @@ class VariationalAutoencoder:
 
         return grad_encoder_weights, grad_encoder_biases, grad_decoder_weights, grad_decoder_biases
 
-    def fit(self, X_train, epochs, batch_size=64):
-        """Entrena el VAE usando mini-batch gradient descent."""
+
+    def fit(self, X_train, epochs, batch_size=64):  # Entrena el VAE usando mini-batch gradient descent
+
         num_samples = X_train.shape[0]
 
         for epoch in range(epochs):
@@ -243,20 +209,19 @@ class VariationalAutoencoder:
                 batch_loss, batch_recon_loss, batch_kl_loss = 0, 0, 0
 
                 for x in batch:
-                    # 1. Forward pass
+                    # 1) Forward pass
                     x_recon, mu, log_var, z, enc_acts, enc_zs, dec_acts, dec_zs = self.forward(x)
 
-                    # 2. Compute loss
+                    # 2) Compute loss
                     loss, recon_loss, kl_loss = self._compute_loss(x, x_recon, mu, log_var)
                     batch_loss += loss
                     batch_recon_loss += recon_loss
                     batch_kl_loss += kl_loss
 
-                    # 3. Backward pass (compute gradients)
-                    g_ew, g_eb, g_dw, g_db = self.backward(x, x_recon, mu, log_var, z, enc_acts, enc_zs, dec_acts,
-                                                           dec_zs)
+                    # 3) Backward pass (compute gradients)
+                    g_ew, g_eb, g_dw, g_db = self.backward(x, x_recon, mu, log_var, z, enc_acts, enc_zs, dec_acts, dec_zs)
 
-                    # 4. Acumular gradientes
+                    # 4) Acumular gradientes
                     for j in range(len(g_ew)):
                         sum_grad_enc_w[j] += g_ew[j]
                         sum_grad_enc_b[j] += g_eb[j]
@@ -264,11 +229,13 @@ class VariationalAutoencoder:
                         sum_grad_dec_w[j] += g_dw[j]
                         sum_grad_dec_b[j] += g_db[j]
 
-                # 5. Actualizar pesos (usando el gradiente promedio del batch)
+                # 5) Actualizar pesos (usando el gradiente promedio del batch)
                 batch_len = len(batch)
+
                 for j in range(len(self.encoder_weights)):
                     self.encoder_weights[j] -= self.lr * (sum_grad_enc_w[j] / batch_len)
                     self.encoder_biases[j] -= self.lr * (sum_grad_enc_b[j] / batch_len)
+
                 for j in range(len(self.decoder_weights)):
                     self.decoder_weights[j] -= self.lr * (sum_grad_dec_w[j] / batch_len)
                     self.decoder_biases[j] -= self.lr * (sum_grad_dec_b[j] / batch_len)
@@ -277,20 +244,21 @@ class VariationalAutoencoder:
                 epoch_recon_loss += batch_recon_loss
                 epoch_kl_loss += batch_kl_loss
 
-            # Imprimir estadísticas de la época
+            # Printtt: estadísticas de la epoch
             avg_loss = epoch_loss / num_samples
             avg_recon_loss = epoch_recon_loss / num_samples
             avg_kl_loss = epoch_kl_loss / num_samples
             elapsed = time.time() - start_time
             print(f"Epoch {epoch + 1}/{epochs} | Tiempo: {elapsed:.2f}s | Loss: {avg_loss:.2f} | Recon Loss: {avg_recon_loss:.2f} | KL Loss: {avg_kl_loss:.2f}")
 
-    def generate(self, n_samples=1):
-        """Genera nuevas muestras desde el espacio latente (Punto 2c)."""
-        generated_images = []
+    def generate(self, n_samples=1):    
+        generated_images = []   # Nuevas muestras desde el espacio latente
+
         for _ in range(n_samples):
             # Muestrea un z aleatorio de una N(0, I)
             z_sample = np.random.randn(self.latent_dim)
             # Pasa z solo por el decoder
             x_generated, _, _ = self._decoder_forward(z_sample)
-            generated_images.append(x_generated.reshape(28, 28))  # Reformatea a 28x28
+            generated_images.append(x_generated.reshape(28, 28))
+
         return generated_images
