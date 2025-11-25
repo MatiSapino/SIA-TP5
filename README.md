@@ -33,14 +33,11 @@ Para instalar las dependencias necesarias en el ambiente virtual
 ## Ejecución
 Para ejecutar el algoritmo
 ```
-pipenv run python main.py <PARAMETRO>
+pipenv run python main.py --mode {ae, dae, vae, all}
 
-| Parámetro           | Descripción                                                     |
-| ------------------- | --------------------------------------------------------------- |
-| `--run-ae`          | Ejecuta solo la parte del Autoencoder básico.                   |
-| `--run-dae`         | Ejecuta solo la parte del Denoising Autoencoder.                |
-| `--run-vae`         | Ejecuta solo la parte del VAE.                                  |
-| `--all` *(default)* | Ejecuta las tres partes.                                        |
-| `--mnist-samples N` | Especifica cuántas imágenes de MNIST usar para entrenar el VAE. |
+Ejemplo: para ejecutar solo el Autoencoder básico:
+
+pipenv run python main.py --mode ae
 
 ```
+
