@@ -4,8 +4,11 @@
 __pycache__/
 *.pyc
 output
-data/mnist_train.csv
 denoising_autoencoder_results.png
 generated_character_ae.png
 generated_digits_ae.png
 latent_space_representation_ae.png
+vae_grid_generation.png
+vae_latent_space.png
+vae_random_generation.png
+vae_reconstruction_comparison.png
